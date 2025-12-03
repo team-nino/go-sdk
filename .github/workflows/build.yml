@@ -34,16 +34,13 @@ jobs:
 
       - name: Download dependencies
         run: |
+          cd infra/broker
           go mod download
           go mod verify
 
       - name: Build broker module
-        run: go build -v ./infra/broker/...
-        working-directory: ${{ github.workspace }}
-
-      - name: Build all modules
         run: go build -v ./...
-        working-directory: ${{ github.workspace }}
+        working-directory: ./infra/broker
 
       - name: Check for build warnings
         run: |
@@ -51,4 +48,4 @@ jobs:
             echo "Build warnings found"
             exit 1
           fi
-        working-directory: ${{ github.workspace }}
+        working-directory: ./infra/broker

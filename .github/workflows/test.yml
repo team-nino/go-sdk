@@ -33,15 +33,17 @@ jobs:
           cache: true
 
       - name: Download dependencies
-        run: go mod download
+        run: |
+          cd infra/broker
+          go mod download
 
       - name: Run unit tests
         run: go test -v -race -timeout 30s ./...
-        working-directory: ${{ github.workspace }}
+        working-directory: ./infra/broker
 
       - name: Run tests with coverage
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
-        working-directory: ${{ github.workspace }}
+        working-directory: ./infra/broker
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -79,7 +81,9 @@ jobs:
           cache: true
 
       - name: Download dependencies
-        run: go mod download
+        run: |
+          cd infra/broker
+          go mod download
 
       - name: Wait for RabbitMQ
         run: |
@@ -96,6 +100,6 @@ jobs:
 
       - name: Run integration tests
         run: go test -v -race -timeout 60s -tags=integration ./...
-        working-directory: ${{ github.workspace }}
+        working-directory: ./infra/broker
         env:
           RABBITMQ_URL: amqp://guest:guest@localhost:5672/

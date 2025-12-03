@@ -48,7 +48,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload nancy report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nancy-vulnerability-report
           path: nancy-report.json
@@ -74,7 +74,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Gosec report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gosec-security-report
           path: results.json
@@ -127,7 +127,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload license report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: licenses-report
           path: licenses-report.txt

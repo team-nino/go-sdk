@@ -74,7 +74,7 @@ jobs:
         run: go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage.html
@@ -118,15 +118,18 @@ jobs:
           cache: true
 
       - name: Verify module integrity
-        run: go mod verify
+        run: |
+          cd infra/broker
+          go mod verify
 
       - name: Tidy and check for drift
         run: |
+          cd infra/broker
           go mod tidy
           if git diff --quiet go.mod go.sum; then
-            echo "go.mod and go.sum are in sync"
+            echo "✅ go.mod and go.sum are in sync"
           else
-            echo "go.mod and go.sum are out of sync"
+            echo "❌ go.mod and go.sum are out of sync"
             git diff go.mod go.sum
             exit 1
           fi
