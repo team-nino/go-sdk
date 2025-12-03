@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+  workflow_call:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.23', '1.24']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Download dependencies
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Build broker module
+        run: go build -v ./infra/broker/...
+        working-directory: ${{ github.workspace }}
+
+      - name: Build all modules
+        run: go build -v ./...
+        working-directory: ${{ github.workspace }}
+
+      - name: Check for build warnings
+        run: |
+          if go build -v ./... 2>&1 | grep -i "warning"; then
+            echo "Build warnings found"
+            exit 1
+          fi
+        working-directory: ${{ github.workspace }}

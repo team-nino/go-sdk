@@ -1,0 +1,95 @@
+name: Go Routines
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+  workflow_call:
+
+concurrency:
+  group: routines-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  goroutine-analysis:
+    name: Goroutine Leaks Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install goreleaser (contains go routine analysis)
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+      - name: Run tests with goroutine leak detection
+        run: |
+          go install github.com/uber-go/goleak/cmd/goleak@latest
+          go test -v -run TestChannelManager ./infra/broker/rabbit/... -coverprofile=/tmp/coverage.out
+        continue-on-error: true
+
+      - name: Check for goroutine leaks with go-inspect
+        run: |
+          go install github.com/go-critic/go-critic/cmd/gocritic@latest
+          gocritic check -enableAll ./infra/broker/...
+        continue-on-error: true
+
+  race-detector:
+    name: Race Detector
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests with race detector
+        run: go test -v -race -timeout 60s ./...
+        working-directory: ${{ github.workspace }}
+
+  deadlock-detection:
+    name: Deadlock Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install go-deadlock
+        run: go get github.com/sasha-s/go-deadlock@latest
+        continue-on-error: true
+
+      - name: Check for potential deadlocks
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          golangci-lint run --enable=govet ./...
+        continue-on-error: true

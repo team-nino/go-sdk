@@ -1,0 +1,101 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+  workflow_call:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.23', '1.24']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run unit tests
+        run: go test -v -race -timeout 30s ./...
+        working-directory: ${{ github.workspace }}
+
+      - name: Run tests with coverage
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      rabbitmq:
+        image: rabbitmq:3.13-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5672:5672
+          - 15672:15672
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Wait for RabbitMQ
+        run: |
+          for i in {1..30}; do
+            if nc -z localhost 5672; then
+              echo "RabbitMQ is ready"
+              exit 0
+            fi
+            echo "Waiting for RabbitMQ... ($i/30)"
+            sleep 1
+          done
+          echo "RabbitMQ failed to start"
+          exit 1
+
+      - name: Run integration tests
+        run: go test -v -race -timeout 60s -tags=integration ./...
+        working-directory: ${{ github.workspace }}
+        env:
+          RABBITMQ_URL: amqp://guest:guest@localhost:5672/

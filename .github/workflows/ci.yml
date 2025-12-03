@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  call-build:
+    name: Build Workflow
+    uses: ./.github/workflows/build.yml
+
+  call-test:
+    name: Test Workflow
+    uses: ./.github/workflows/test.yml
+
+  call-lint:
+    name: Lint Workflow
+    uses: ./.github/workflows/lint.yml
+
+  call-goroutines:
+    name: Goroutines Workflow
+    uses: ./.github/workflows/goroutines.yml
+
+  call-security:
+    name: Security Workflow
+    uses: ./.github/workflows/security.yml
+
+  status-check:
+    name: Status Check
+    runs-on: ubuntu-latest
+    needs: [call-build, call-test, call-lint, call-goroutines, call-security]
+    if: always()
+    steps:
+      - name: Check workflow status
+        run: |
+          if [ "${{ needs.call-build.result }}" != "success" ]; then
+            echo "Build workflow failed"
+            exit 1
+          fi
+          if [ "${{ needs.call-test.result }}" != "success" ]; then
+            echo "Test workflow failed"
+            exit 1
+          fi
+          if [ "${{ needs.call-lint.result }}" != "success" ]; then
+            echo "Lint workflow failed"
+            exit 1
+          fi
+          if [ "${{ needs.call-goroutines.result }}" != "success" ]; then
+            echo "Goroutines workflow had issues (non-blocking)"
+          fi
+          if [ "${{ needs.call-security.result }}" != "success" ]; then
+            echo "Security workflow had issues (non-blocking)"
+          fi
+          echo "CI pipeline completed"
